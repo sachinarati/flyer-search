@@ -1,0 +1,44 @@
+﻿> git init
+Initialized empty Git repository in C:/繧ｵ繝√Φ/莉・2026/202610/Store Kiro/app-v2/.git/
+> git branch -M main
+
+> git add index.html app.js pdf-extract.js recipes.js icons.js vendor .gitignore README_菴ｿ縺・婿.md DEPLOY_github_pages.md 繝・・繝ｭ繧､謇矩・md 襍ｷ蜍輔☆繧・bat
+
+> git status --short
+?? .gitignore
+?? DEPLOY_github_pages.md
+?? "README_\344\275\277\343\201\204\346\226\271.md"
+?? _gitinit.ps1
+?? app.js
+?? icons.js
+?? index.html
+?? pdf-extract.js
+?? recipes.js
+?? vendor/
+?? "\343\203\207\343\203\227\343\203\255\343\202\244\346\211\213\351\240\206.md"
+?? "\350\265\267\345\213\225\343\201\231\343\202\213.bat"
+> git commit -m "Flyer search app v2 (in-browser PDF import)"
+On branch main
+
+Initial commit
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.gitignore
+	DEPLOY_github_pages.md
+	"README_\344\275\277\343\201\204\346\226\271.md"
+	_gitinit.ps1
+	app.js
+	icons.js
+	index.html
+	pdf-extract.js
+	recipes.js
+	vendor/
+	"\343\203\207\343\203\227\343\203\255\343\202\244\346\211\213\351\240\206.md"
+	"\350\265\267\345\213\225\343\201\231\343\202\213.bat"
+
+nothing added to commit but untracked files present (use "git add" to track)
+> git log --oneline -1
+
+> git ls-files vendor
+

@@ -1,0 +1,15 @@
+# Dev/test helper (not needed for the website)
+verify_extract.node.js
+
+# Temp build/helper scripts
+_gitinit.ps1
+_*.ps1
+_*.txt
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
+
+# Local notes you may not want public (optional)
+# 起動する.bat
