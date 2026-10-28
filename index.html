@@ -33,9 +33,6 @@
   .databar button{padding:8px 14px; font-size:13.5px; font-weight:700; border-radius:8px; cursor:pointer; border:1px solid}
   .b-upload{background:var(--orange); color:#fff; border-color:var(--orange)!important}
   .b-upload:hover{filter:brightness(1.05)}
-  .b-json{background:#fff; color:var(--green); border-color:var(--green)!important}
-  .b-json:hover{background:var(--green-l)}
-  .b-json:disabled{opacity:.45; cursor:not-allowed}
 
   /* drop zone */
   .dropzone{border:2px dashed var(--green); border-radius:14px; background:var(--green-l); padding:40px 20px; text-align:center; cursor:pointer; transition:.15s; margin-bottom:16px}
@@ -105,14 +102,18 @@
   .rgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px}
   .recipe-card{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; transition:transform .12s, box-shadow .15s}
   .recipe-card:hover{transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,.1)}
-  .recipe-card .rhead{height:92px; display:flex; align-items:center; justify-content:center; font-size:48px; background:#fff4e9}
+  .recipe-card .rhead{height:92px; display:flex; align-items:center; justify-content:center; font-size:48px; background:#fff4e9; position:relative}
+  .recipe-card .rtime{position:absolute; bottom:6px; right:8px; font-size:11.5px; font-weight:700; color:var(--green-d); background:rgba(255,255,255,.9); border-radius:12px; padding:2px 9px}
   .recipe-card .rbody{padding:12px 15px 14px}
   .recipe-card h3{margin:0 0 6px; font-size:17px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
   .badge{font-size:11px; padding:3px 9px; border-radius:20px; font-weight:700}
   .badge.ok{background:#e6f7ea; color:var(--green-d); border:1px solid var(--green)}
   .badge.soon{background:#fff3e0; color:var(--warn); border:1px solid #f0b37e}
   .badge.genre{background:#eef1ff; color:#3b4b9a; border:1px solid #c5cdf0}
+  .badge.time{background:#f0f7ff; color:var(--blue); border:1px solid #bcd3f5}
   .recipe-card .tip{font-size:13px; color:var(--sub); margin:4px 0 8px}
+  .yt-btn{display:inline-flex; align-items:center; gap:6px; margin-top:4px; padding:7px 12px; font-size:12.5px; font-weight:700; color:#fff; background:#ff0000; border-radius:8px; text-decoration:none}
+  .yt-btn:hover{filter:brightness(1.08)}
   .ing-row{font-size:13px; margin:3px 0}
   .ing-row .lbl{color:var(--sub); display:inline-block; min-width:84px; vertical-align:top}
   .ing-tag{display:inline-block; font-size:12px; padding:2px 8px; border-radius:6px; margin:2px 3px 2px 0}
@@ -149,6 +150,7 @@
   .mrecipe-item .ic{font-size:26px}
   .mrecipe-item .nm{font-weight:700; font-size:14px}
   .mrecipe-item .mk{font-size:11.5px}
+  .mrecipe-item .yt{margin-left:auto; color:#ff0000; font-weight:800; text-decoration:none; font-size:12px; white-space:nowrap}
   .mnote{font-size:12px; color:var(--sub); margin-top:10px; line-height:1.6}
 
   footer{text-align:center; font-size:11.5px; color:#999; padding:24px 16px 80px; line-height:1.7}
@@ -165,7 +167,7 @@
 <body>
 <header>
   <h1>🛒 静鉄ストア チラシ商品検索 <span style="font-size:13px;opacity:.85">v2 / PDF取り込み版</span></h1>
-  <div class="sub">チラシPDFを取り込んで検索・献立提案。JSON保存でGitHubにも公開できます。</div>
+  <div class="sub">チラシPDFを取り込んで検索。献立は調理時間とYouTubeの作り方リンク付き。</div>
 </header>
 
 <div class="tabs">
@@ -180,10 +182,7 @@
     <div class="status" id="dataStatus">まだデータがありません。チラシPDFを取り込んでください。</div>
     <div class="right">
       <input type="file" id="pdfInput" accept="application/pdf,.pdf" style="display:none">
-      <input type="file" id="jsonInput" accept="application/json,.json" style="display:none">
       <button class="b-upload" id="uploadBtn">📄 PDFを取り込む</button>
-      <button class="b-json" id="loadJsonBtn">📁 JSONを読み込む</button>
-      <button class="b-json" id="saveJsonBtn" disabled>💾 JSONを保存</button>
     </div>
   </div>
 
@@ -241,6 +240,12 @@
             <option value="洋">洋食</option>
             <option value="中">中華</option>
             <option value="その他">その他</option>
+          </select>
+        </label>
+        <label style="margin-left:12px">並べ替え
+          <select id="recipeSort">
+            <option value="score">おすすめ順</option>
+            <option value="time_asc">時短（短い順）</option>
           </select>
         </label>
         <label style="margin-left:12px"><input type="checkbox" id="onlyMakeable"> 今すぐ作れるものだけ</label>

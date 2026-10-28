@@ -12,6 +12,8 @@
   var ING = window.INGREDIENT_KEYWORDS || {};
   var TAX_RATE = 0.08;
   var STORE_KEY = "flyer_v2_data";
+  var fmtTime = window.formatCookTime || function (m) { return m != null ? ("約" + m + "分") : ""; };
+  function youtubeSearchUrl(dish){ return "https://www.youtube.com/results?search_query=" + encodeURIComponent(dish + " 作り方 レシピ"); }
 
   // 可変データ(PDF/JSONで差し替え)
   var PRODUCTS = [];
@@ -57,7 +59,6 @@
     populateDepartments();
     updateDataStatus();
     updateTray();
-    document.getElementById("saveJsonBtn").disabled = !PRODUCTS.length;
     // ドロップゾーンはデータがあれば隠す
     document.getElementById("dropzone").style.display = PRODUCTS.length ? "none" : "block";
     doSearch();
@@ -179,7 +180,7 @@
   function categoriesOf(name){ var cats=[]; for(var cat in ING){var kws=ING[cat];for(var i=0;i<kws.length;i++){if(name.indexOf(kws[i])!==-1){cats.push(cat);break;}}} return cats; }
   function catsFromNames(names){ var set={}; names.forEach(function(n){categoriesOf(n).forEach(function(c){set[c]=true;});}); return set; }
   function availableIngredients(){ var a={}; PRODUCTS.forEach(function(p){categoriesOf(p.name).forEach(function(c){(a[c]=a[c]||[]).push(p.name);});}); return a; }
-  function buildRecipes(avail, genreFilter, onlyMakeable) {
+  function buildRecipes(avail, genreFilter, onlyMakeable, sortBy) {
     var out=[];
     RECIPES.forEach(function(r){
       if(genreFilter && r.genre!==genreFilter) return;
@@ -189,7 +190,8 @@
       var niceHave=(r.nice||[]).filter(function(c){return avail[c];});
       out.push({recipe:r,makeable:makeable,needHave:needHave,niceHave:niceHave,avail:avail,score:(makeable?1000:0)+needHave.length*10+niceHave.length});
     });
-    out.sort(function(a,b){return b.score-a.score;});
+    if (sortBy==="time_asc") out.sort(function(a,b){ return (a.recipe.time||999)-(b.recipe.time||999) || b.score-a.score; });
+    else out.sort(function(a,b){return b.score-a.score;});
     return out;
   }
   function ingTag(cat, avail) {
@@ -202,23 +204,28 @@
   function recipeCardHTML(it) {
     var r=it.recipe;
     var badge=it.makeable?'<span class="badge ok">今すぐ作れる</span>':'<span class="badge soon">あと'+(r.need.length-it.needHave.length)+'品でOK</span>';
+    var timeBadge=(r.time!=null)?'<span class="badge time">⏱ '+esc(fmtTime(r.time))+'</span>':'';
+    var timeTile=(r.time!=null)?'<span class="rtime">⏱ '+esc(fmtTime(r.time))+'</span>':'';
     var needTags=r.need.map(function(c){return ingTag(c,it.avail);}).join("");
     var niceTags=(r.nice||[]).map(function(c){return ingTag(c,it.avail);}).join("");
     var prods={}; r.need.concat(r.nice||[]).forEach(function(c){(it.avail[c]||[]).forEach(function(n){if(typeof n==="string")prods[n]=1;});});
     var prodList=Object.keys(prods);
     var matched=prodList.length?'<details class="matched"><summary>セール該当商品を見る ('+prodList.length+'件)</summary><ul>'+prodList.map(function(n){return '<li>'+esc(n)+'</li>';}).join("")+'</ul></details>':'';
-    return '<div class="recipe-card"><div class="rhead">'+ricon(r.name)+'</div><div class="rbody">' +
-      '<h3>'+esc(r.name)+badge+'<span class="badge genre">'+esc(r.genre)+'</span></h3>' +
+    var yt='<a class="yt-btn" href="'+youtubeSearchUrl(r.name)+'" target="_blank" rel="noopener">▶ YouTubeで作り方</a>';
+    return '<div class="recipe-card"><div class="rhead">'+ricon(r.name)+timeTile+'</div><div class="rbody">' +
+      '<h3>'+esc(r.name)+badge+timeBadge+'<span class="badge genre">'+esc(r.genre)+'</span></h3>' +
       '<div class="tip">💡 '+esc(r.tip)+'</div>' +
       '<div class="ing-row"><span class="lbl">必要な食材</span>'+needTags+'</div>' +
-      (niceTags?'<div class="ing-row"><span class="lbl">あると良い</span>'+niceTags+'</div>':'')+matched+'</div></div>';
+      (niceTags?'<div class="ing-row"><span class="lbl">あると良い</span>'+niceTags+'</div>':'')+matched +
+      '<div>'+yt+'</div></div></div>';
   }
   function renderRecipes() {
     var box = document.getElementById("recipeResults");
     if (!PRODUCTS.length) { box.innerHTML = '<div class="empty"><div class="big">🍳</div>先にチラシPDFを取り込んでください。</div>'; return; }
     var genre=document.getElementById("genreSel").value;
     var only=document.getElementById("onlyMakeable").checked;
-    var items=buildRecipes(availableIngredients(),genre,only);
+    var sortBy=document.getElementById("recipeSort").value;
+    var items=buildRecipes(availableIngredients(),genre,only,sortBy);
     if (!items.length) { box.innerHTML='<div class="empty"><div class="big">🍳</div>条件に合う献立が見つかりませんでした。</div>'; return; }
     box.innerHTML='<div class="rgrid">'+items.map(recipeCardHTML).join("")+'</div>';
   }
@@ -253,7 +260,8 @@
     var myCats=categoriesOf(p.name), recipeHits=relatedRecipes(myCats), recHtml="";
     if (recipeHits.length) {
       recHtml='<div class="mrecipes"><b>🍳 この商品で作れる料理</b>'+recipeHits.slice(0,6).map(function(h){
-        return '<div class="mrecipe-item"><span class="ic">'+ricon(h.recipe.name)+'</span><span><div class="nm">'+esc(h.recipe.name)+'</div><span class="mk">'+(h.makeable?'<span class="badge ok">今すぐ作れる</span>':'<span class="badge soon">あと'+(h.recipe.need.length-h.have)+'品でOK</span>')+'</span></span></div>';
+        var tt=(h.recipe.time!=null)?' <span class="mk">⏱'+esc(fmtTime(h.recipe.time))+'</span>':'';
+        return '<div class="mrecipe-item"><span class="ic">'+ricon(h.recipe.name)+'</span><span><div class="nm">'+esc(h.recipe.name)+'</div><span class="mk">'+(h.makeable?'<span class="badge ok">今すぐ作れる</span>':'<span class="badge soon">あと'+(h.recipe.need.length-h.have)+'品でOK</span>')+'</span>'+tt+'</span><a class="yt" href="'+youtubeSearchUrl(h.recipe.name)+'" target="_blank" rel="noopener">▶作り方</a></div>';
       }).join("")+'</div>';
     }
     var rows=(p.manufacturer?drow("メーカー・産地",p.manufacturer):"")+(p.spec?drow("規格",p.spec):"")+drow("部門",p.department)+(p.jan?drow("JANコード",p.jan):"")+(p.source_page?drow("元チラシページ",p.source_page+" ページ"):"");
@@ -279,7 +287,9 @@
     var cats=categoriesOf(p.name), hits=relatedRecipes(cats), body;
     if (!hits.length) body='<p>この商品に直接ひもづくレシピは見つかりませんでした。<br>「献立ヒント」タブもお試しください。</p>';
     else body=hits.map(function(h){
-      return '<div class="mrecipe-item"><span class="ic">'+ricon(h.recipe.name)+'</span><span><div class="nm">'+esc(h.recipe.name)+'</div><span class="mk">'+(h.makeable?'<span class="badge ok">今すぐ作れる</span>':'<span class="badge soon">あと'+(h.recipe.need.length-h.have)+'品でOK</span>')+' <span class="badge genre">'+esc(h.recipe.genre)+'</span></span><div class="tip" style="font-size:12px">💡 '+esc(h.recipe.tip)+'</div></span></div>';
+      var r=h.recipe;
+      var tt=(r.time!=null)?' <span class="mk">⏱'+esc(fmtTime(r.time))+'</span>':'';
+      return '<div class="mrecipe-item"><span class="ic">'+ricon(r.name)+'</span><span><div class="nm">'+esc(r.name)+'</div><span class="mk">'+(h.makeable?'<span class="badge ok">今すぐ作れる</span>':'<span class="badge soon">あと'+(r.need.length-h.have)+'品でOK</span>')+' <span class="badge genre">'+esc(r.genre)+'</span></span>'+tt+'<div class="tip" style="font-size:12px">💡 '+esc(r.tip)+'</div></span><a class="yt" href="'+youtubeSearchUrl(r.name)+'" target="_blank" rel="noopener">▶作り方</a></div>';
     }).join("");
     mbody.innerHTML='<span class="mdept">'+esc(p.department)+'</span><h2>🍳 '+esc(p.name)+' の活用レシピ</h2>'+(cats.length?'<div class="mnote" style="margin:0 0 10px">食材カテゴリ: '+cats.map(esc).join("、")+'</div>':'')+body+'<div class="mnote">「今すぐ作れる」は、必要な食材がすべてチラシのセール品でそろう場合です。</div>';
     openModal();
@@ -289,7 +299,7 @@
     var names=ids.map(function(id){return BY_ID[id]?BY_ID[id].name:"";}).filter(Boolean);
     var avail=catsFromNames(names), availMap={};
     Object.keys(avail).forEach(function(c){ availMap[c]=names.filter(function(n){return categoriesOf(n).indexOf(c)!==-1;}); });
-    var items=buildRecipes(availMap,"",false);
+    var items=buildRecipes(availMap,"",false,"score");
     var makeable=items.filter(function(x){return x.makeable;});
     var soon=items.filter(function(x){return !x.makeable && x.needHave.length>0;});
     mhead.style.background="#fff4e9"; mheadIcon.textContent="🧺";
@@ -299,7 +309,8 @@
       if(!arr.length)return "";
       return '<div style="margin-bottom:6px"><b>'+title+'</b></div>'+arr.map(function(h){
         var r=h.recipe;
-        return '<div class="mrecipe-item"><span class="ic">'+ricon(r.name)+'</span><span><div class="nm">'+esc(r.name)+'</div><span class="mk">'+(h.makeable?'<span class="badge ok">今すぐ作れる</span>':'<span class="badge soon">あと'+(r.need.length-h.needHave.length)+'品でOK (不足: '+r.need.filter(function(c){return !availMap[c];}).map(esc).join("、")+')</span>')+' <span class="badge genre">'+esc(r.genre)+'</span></span><div class="tip" style="font-size:12px">💡 '+esc(r.tip)+'</div></span></div>';
+        var tt=(r.time!=null)?' <span class="mk">⏱'+esc(fmtTime(r.time))+'</span>':'';
+        return '<div class="mrecipe-item"><span class="ic">'+ricon(r.name)+'</span><span><div class="nm">'+esc(r.name)+'</div><span class="mk">'+(h.makeable?'<span class="badge ok">今すぐ作れる</span>':'<span class="badge soon">あと'+(r.need.length-h.needHave.length)+'品でOK (不足: '+r.need.filter(function(c){return !availMap[c];}).map(esc).join("、")+')</span>')+' <span class="badge genre">'+esc(r.genre)+'</span></span>'+tt+'<div class="tip" style="font-size:12px">💡 '+esc(r.tip)+'</div></span><a class="yt" href="'+youtubeSearchUrl(r.name)+'" target="_blank" rel="noopener">▶作り方</a></div>';
       }).join("");
     }
     var body;
@@ -349,40 +360,6 @@
       showProgress(false);
       alert("PDFの解析中にエラーが発生しました:\n" + (e && e.message ? e.message : e));
     }
-  }
-
-  function handleJsonFile(file) {
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var obj = JSON.parse(reader.result);
-        var products = Array.isArray(obj) ? obj : (obj.products || obj.data || []);
-        if (!products.length) { alert("商品データが見つかりませんでした。"); return; }
-        // 最低限 name を持つことを確認し、idを振り直す
-        products = products.map(function (p, i) {
-          p.id = p.id != null ? p.id : (i + 1);
-          p.name = p.name || p["商品名"] || "";
-          return p;
-        }).filter(function (p) { return p.name; });
-        var meta = Array.isArray(obj) ? { source_file: file.name } : (function () { var m = {}; for (var k in obj) if (k !== "products" && k !== "data") m[k] = obj[k]; m.source_file = m.source_file || file.name; return m; })();
-        setData(products, meta, true);
-        alert("JSON読み込み完了: " + products.length + " 件。");
-      } catch (e) { alert("JSONの読み込みに失敗しました:\n" + (e && e.message ? e.message : e)); }
-    };
-    reader.readAsText(file, "utf-8");
-  }
-
-  function saveJson() {
-    if (!PRODUCTS.length) return;
-    var out = { source_file: META.source_file || "flyer.pdf", source_url: META.source_url || "", extracted_at: META.extracted_at || "", products: PRODUCTS };
-    var blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url; a.download = "products.json";
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
   // =============================================================
@@ -440,6 +417,7 @@
     });
     document.getElementById("genreSel").addEventListener("change", renderRecipes);
     document.getElementById("onlyMakeable").addEventListener("change", renderRecipes);
+    document.getElementById("recipeSort").addEventListener("change", renderRecipes);
     document.getElementById("results").addEventListener("click", onResultsClick);
     document.getElementById("makeBtn").addEventListener("click", showMakeFromSelected);
     document.getElementById("clearSel").addEventListener("click", clearSelection);
@@ -452,12 +430,6 @@
     var pdfInput=document.getElementById("pdfInput");
     document.getElementById("uploadBtn").addEventListener("click", function(){ pdfInput.click(); });
     pdfInput.addEventListener("change", function(){ if(pdfInput.files[0]){ handlePdfFile(pdfInput.files[0]); pdfInput.value=""; } });
-
-    var jsonInput=document.getElementById("jsonInput");
-    document.getElementById("loadJsonBtn").addEventListener("click", function(){ jsonInput.click(); });
-    jsonInput.addEventListener("change", function(){ if(jsonInput.files[0]){ handleJsonFile(jsonInput.files[0]); jsonInput.value=""; } });
-
-    document.getElementById("saveJsonBtn").addEventListener("click", saveJson);
 
     // --- ドロップゾーン ---
     var dz=document.getElementById("dropzone");
